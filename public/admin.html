@@ -1,0 +1,42 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Painel | Studio Agathaa</title>
+<style>:root{--b:#241B17;--g:#D7BC99;--bg:#F4EDE4}*{box-sizing:border-box}body{margin:0;font:1rem/1.5 system-ui,sans-serif;background:var(--bg);color:var(--b)}
+header{background:var(--b);color:var(--bg);padding:.8rem 1.25rem;display:flex;justify-content:space-between;align-items:center}main{max-width:960px;margin:1.5rem auto;padding:0 1.25rem}
+h2{font:500 1.6rem Georgia,serif;margin:2rem 0 .8rem}input,select,button,textarea{font:inherit;padding:.55rem;border:1px solid #9A8068;border-radius:2px;background:#fff}
+button{background:var(--b);color:var(--bg);cursor:pointer}form,.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:end;margin-bottom:.8rem}
+table{width:100%;border-collapse:collapse;background:#FCFAF7}td,th{padding:.5rem;border-bottom:1px solid #e3d8ca;text-align:left;font-size:.9rem}.tbl{overflow-x:auto}#login{max-width:320px;margin:4rem auto;display:grid}.e{color:#8a2d1f}[hidden]{display:none!important}</style></head>
+<body><header><strong>Studio Agathaa · Painel</strong><button id="out" hidden>Sair</button></header>
+<form id="login" class="col"><h2>Entrar</h2><input id="em" type="email" placeholder="E-mail" autocomplete="username" required><input id="pw" type="password" placeholder="Senha" autocomplete="current-password" required><button>Entrar</button><p class="e" id="le"></p></form>
+<main id="app" hidden>
+<h2>Agenda</h2><div class="tbl"><table id="appts"></table></div>
+<div id="adm">
+<h2>Serviços</h2><form id="sf"><select id="s-cat"><option>Nails</option><option>Lashes</option></select><input id="s-name" placeholder="Nome" required><input id="s-desc" placeholder="Descrição"><input id="s-price" type="number" step="0.01" min="0" placeholder="Preço (R$)" required><input id="s-dur" type="number" min="5" step="5" placeholder="Minutos" required><button>Adicionar</button></form>
+<div class="tbl"><table id="svcs"></table></div>
+<h2>Profissionais</h2><form id="pf"><input id="p-name" placeholder="Nome" required><input id="p-start" type="time" value="09:00" required><input id="p-end" type="time" value="18:00" required>
+<label>Dias <select id="p-days" multiple size="4"><option value="1">Seg</option><option value="2">Ter</option><option value="3">Qua</option><option value="4">Qui</option><option value="5">Sex</option><option value="6">Sáb</option><option value="0">Dom</option></select></label>
+<label>Serviços <select id="p-svcs" multiple size="4"></select></label><button>Adicionar</button></form>
+<div class="tbl"><table id="pros"></table></div>
+<h2>Configurações</h2><p style="font-size:.85rem">Só a proprietária salva alterações.</p><form id="cf"></form>
+</div></main>
+<script>
+const $=s=>document.querySelector(s);const api=async(u,m='GET',b)=>{const r=await fetch(u,{method:m,headers:{'Content-Type':'application/json'},body:b&&JSON.stringify(b)}),j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||'Erro'),{status:r.status});return j};
+const brl=c=>(c/100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}),LB={confirmed:'Confirmado',cancelled:'Cancelado',completed:'Concluído',no_show:'Não compareceu'};
+const esc=s=>{const d=document.createElement('div');d.textContent=s??'';return d.innerHTML};let ROLE='';
+$('#login').onsubmit=async e=>{e.preventDefault();try{ROLE=(await api('/api/admin/login','POST',{email:$('#em').value,password:$('#pw').value})).role;start()}catch(x){$('#le').textContent=x.message}};
+$('#out').onclick=async()=>{await api('/api/admin/logout','POST');location.reload()};
+async function start(){$('#login').hidden=true;$('#app').hidden=false;$('#out').hidden=false;$('#adm').hidden=ROLE==='professional';await agenda();if(ROLE!=='professional')await admin()}
+async function agenda(){const l=await api('/api/admin/appointments');
+ $('#appts').innerHTML='<tr><th>Quando</th><th>Cliente</th><th>Serviço</th><th>Profissional</th><th>Valor</th><th>Status</th></tr>'+(l.map(a=>`<tr><td>${new Date(a.starts_at).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short',timeZone:'America/Sao_Paulo'})}</td><td>${esc(a.customer_name)}<br><small>${esc(a.customer_phone)}</small></td><td>${esc(a.service)}</td><td>${esc(a.professional)}</td><td>${brl(a.price_cents)}</td><td><select data-id="${a.id}">${Object.entries(LB).map(([k,v])=>`<option value="${k}" ${k===a.status?'selected':''}>${v}</option>`).join('')}</select></td></tr>`).join('')||'<tr><td colspan="6">Nenhum agendamento ainda.</td></tr>')}
+$('#appts').onchange=async e=>{if(!e.target.dataset.id)return;try{await api('/api/admin/appointments/'+e.target.dataset.id,'PATCH',{status:e.target.value})}catch(x){alert(x.message);agenda()}};
+async function admin(){const [s,p,c]=await Promise.all([api('/api/admin/services'),api('/api/admin/professionals'),api('/api/admin/settings')]);
+ $('#svcs').innerHTML='<tr><th>Serviço</th><th>Preço</th><th>Min</th><th>Ativo</th></tr>'+s.map(x=>`<tr><td>${esc(x.category)} · ${esc(x.name)}</td><td>${brl(x.price_cents)}</td><td>${x.duration_min}</td><td><input type="checkbox" data-sid="${x.id}" ${x.active?'checked':''}></td></tr>`).join('');
+ window._s=s;$('#p-svcs').innerHTML=s.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join('');
+ $('#pros').innerHTML='<tr><th>Profissional</th><th>Ativa</th></tr>'+p.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.active?'sim':'não'}</td></tr>`).join('');
+ const L={studio_name:'Nome',whatsapp:'WhatsApp (só números, com 55)',instagram:'Instagram (sem @)',address:'Endereço',hours_text:'Horários (texto)',map_url:'Link do mapa (https)',min_notice_hours:'Antecedência mínima (h)',max_days_ahead:'Agendar até (dias)',cancel_hours:'Cancelar até (h antes)',slot_step_min:'Intervalo dos horários (min)'};
+ $('#cf').innerHTML=Object.entries(L).map(([k,v])=>`<label>${v}<br><input name="${k}" value="${esc(c[k])}"></label>`).join('')+'<button>Salvar</button>'}
+$('#svcs').onchange=async e=>{const id=e.target.dataset.sid;if(!id)return;const x=window._s.find(y=>y.id==id);await api('/api/admin/services/'+id,'PUT',{...x,price:x.price_cents/100,active:e.target.checked})};
+$('#sf').onsubmit=async e=>{e.preventDefault();try{await api('/api/admin/services','POST',{category:$('#s-cat').value,name:$('#s-name').value,description:$('#s-desc').value,price:$('#s-price').value,duration_min:$('#s-dur').value});e.target.reset();admin()}catch(x){alert(x.message)}};
+$('#pf').onsubmit=async e=>{e.preventDefault();const sel=i=>[...$(i).selectedOptions].map(o=>o.value);try{await api('/api/admin/professionals','POST',{name:$('#p-name').value,start:$('#p-start').value,end:$('#p-end').value,weekdays:sel('#p-days'),service_ids:sel('#p-svcs')});e.target.reset();admin()}catch(x){alert(x.message)}};
+$('#cf').onsubmit=async e=>{e.preventDefault();try{await api('/api/admin/settings','PUT',Object.fromEntries(new FormData(e.target)));alert('Configurações salvas.')}catch(x){alert(x.message)}};
+api('/api/admin/appointments').then(()=>api('/api/admin/settings').then(()=>{ROLE='admin'},()=>{ROLE='professional'}).then(start)).catch(()=>{});
+</script></body></html>

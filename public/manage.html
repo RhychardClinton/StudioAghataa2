@@ -1,0 +1,20 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>Seu agendamento | Studio Agathaa</title>
+<style>body{margin:0;font:1rem/1.6 system-ui,sans-serif;background:#F4EDE4;color:#241B17}main{max-width:480px;margin:3rem auto;padding:0 1.25rem}
+h1{font:500 2.2rem Georgia,serif}.box{background:#FCFAF7;padding:1.2rem;border:1px solid #e3d8ca}button{background:#241B17;color:#F4EDE4;border:0;padding:.8rem 1.4rem;cursor:pointer;font:inherit}.e{color:#8a2d1f}</style></head>
+<body><main><h1>Seu agendamento</h1><div class="box" id="b">Carregando…</div><p id="m" role="status"></p></main>
+<script>
+const t=location.pathname.split('/').pop(),b=document.getElementById('b'),m=document.getElementById('m');
+const L={confirmed:'Confirmado',cancelled:'Cancelado',completed:'Concluído',no_show:'Não compareceu'};
+async function load(){
+ const r=await fetch('/api/manage/'+t),a=await r.json();
+ if(!r.ok){b.textContent=a.error;return}
+ const d=new Date(a.starts_at).toLocaleString('pt-BR',{dateStyle:'full',timeStyle:'short',timeZone:'America/Sao_Paulo'});
+ b.innerHTML='';const p=document.createElement('p');
+ p.textContent=`${a.service} com ${a.professional}\n${d}\n${a.duration_min} min · R$ ${(a.price_cents/100).toFixed(2).replace('.',',')}\nStatus: ${L[a.status]}`;p.style.whiteSpace='pre-line';b.append(p);
+ if(a.status==='confirmed'){const x=document.createElement('button');x.textContent='Cancelar agendamento';x.onclick=async()=>{
+  if(!confirm('Cancelar este agendamento?'))return;const r=await fetch('/api/manage/'+t+'/cancel',{method:'POST'}),j=await r.json();
+  if(r.ok)load();else{m.className='e';m.textContent=j.error}};b.append(x)}
+}
+load();
+</script></body></html>
