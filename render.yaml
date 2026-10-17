@@ -2,19 +2,15 @@ services:
   - type: web
     name: studio-agathaa
     runtime: node
-    plan: starter          # disco persistente exige plano pago
+    plan: free
     buildCommand: npm install
     startCommand: node server.js
     healthCheckPath: /healthz
-    disk:
-      name: agathaa-data
-      mountPath: /var/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: DATABASE_FILE
-        value: /var/data/agathaa.db
+        value: /tmp/agathaa.db
       - key: JWT_SECRET
         generateValue: true
       - key: OWNER_EMAIL
