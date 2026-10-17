@@ -27,7 +27,7 @@ const initDb = async () => {
   db = new SQL.Database(data);
   db.run('PRAGMA foreign_keys = ON');
   const schema = fs.readFileSync(path.join(__dirname, 'db', 'schema.sql'), 'utf8');
-  schema.split(';').filter(x => x.trim()).forEach(s => { try { db.run(s); } catch(e) { if (!/already exists/.test(e)) throw e; } });
+  db.run(schema);  // executar tudo de uma vez
   saveDb();
 };
 const saveDb = () => { fs.writeFileSync(dbFile, Buffer.from(db.export())); };
